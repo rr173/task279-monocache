@@ -20,8 +20,10 @@ func Open(path string) (*DB, error) {
 		return nil, fmt.Errorf("open sqlite %q: %w", path, err)
 	}
 	// SQLite 写并发受限，单连接可避免数据库锁竞争。
-	sqldb.SetMaxOpenConns(32)
-	sqldb.SetMaxIdleConns(32)
+	// 多连接并发写会触发 SQLITE_BUSY 并丢请求，使得本应双双落盘的等价候选
+	// 只剩一侧，比对时看不到对方而误判为 unique。
+	sqldb.SetMaxOpenConns(1)
+	sqldb.SetMaxIdleConns(1)
 	if _, err := sqldb.Exec("PRAGMA busy_timeout=5000"); err != nil {
 		_ = sqldb.Close()
 		return nil, fmt.Errorf("pragma busy_timeout: %w", err)

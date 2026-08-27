@@ -289,7 +289,6 @@ func (s *Service) CompareCache(reqID string) (*model.CacheEntry, cachecmp.Verdic
 			others = append(others, e)
 		}
 	}
-	time.Sleep(15 * time.Millisecond)
 	cand := cachecmp.Candidate{
 		DefID:      r.DefID,
 		ABIID:      r.ABIID,
@@ -320,10 +319,44 @@ func (s *Service) CompareCache(reqID string) (*model.CacheEntry, cachecmp.Verdic
 			return nil, 0, err
 		}
 	}
-	if verdict == cachecmp.VerdictConflict {
-		_ = s.db.SetBatchStatus(r.BatchID, model.BatchConflicted)
+	// 权威归一：落盘后基于确定性数据重判同实参集同 ABI 异键的分歧。
+	// 并发下两位同事可能都在对端落盘前读取 existing 而初判均为 unique，
+	// 此处以已落盘事实为准把分歧组一并抬升为 conflict，确保不漏报。
+	if err := s.reconcileCacheConflicts(r.DefID, r.BatchID); err != nil {
+		return nil, 0, err
 	}
 	return entry, verdict, nil
+}
+
+// reconcileCacheConflicts 按定义聚合缓存条目，对同实参集同 ABI 异键的组统一标记 conflict，
+// 并在出现分歧时把批次抬升为 conflicted、无分歧且当前为 conflicted 时不回退（交给合并流程）。
+func (s *Service) reconcileCacheConflicts(defID, batchID string) error {
+	entries, err := s.db.ListCacheByDef(defID)
+	if err != nil {
+		return err
+	}
+	conflict := cachecmp.ReconcileConflicts(entries)
+	for _, e := range entries {
+		switch {
+		case conflict[e.ID] && e.Status != model.CacheConflict:
+			e.Status = model.CacheConflict
+			if err := s.db.UpdateCacheEntry(e); err != nil {
+				return err
+			}
+		case !conflict[e.ID] && e.Status == model.CacheConflict:
+			// 此前误标为 conflict 的条目随权威重判归位。
+			e.Status = model.CacheUnique
+			if err := s.db.UpdateCacheEntry(e); err != nil {
+				return err
+			}
+		}
+	}
+	if len(conflict) > 0 {
+		if err := s.db.SetBatchStatus(batchID, model.BatchConflicted); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // MergeAndResolve 合并多个请求的等价约束并重新计算单态化键，消除规范化分歧。
