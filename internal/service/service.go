@@ -3,7 +3,6 @@ package service
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"time"
 
 	"task279-monocache/internal/cachecmp"
@@ -76,13 +75,10 @@ func (s *Service) GetABI(id string) (*model.ABIVersion, error) { return s.db.Get
 // ListABIs 列出全部 ABI。
 func (s *Service) ListABIs() ([]*model.ABIVersion, error) { return s.db.ListABIs() }
 
-// GetRequest 读取实例请求。
+// GetRequest 读取实例请求。错误直接透传，保持 errors.Is(err, model.ErrNotFound)
+// 可被上层识别，从而正确映射为 404。
 func (s *Service) GetRequest(id string) (*model.InstanceRequest, error) {
-	r, err := s.db.GetRequest(id)
-	if err != nil {
-		return nil, fmt.Errorf("service GetRequest: %v", err)
-	}
-	return r, nil
+	return s.db.GetRequest(id)
 }
 
 // ListRequests 按批次列出实例请求。

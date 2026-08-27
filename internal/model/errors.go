@@ -75,7 +75,10 @@ func ValidRequestStatus(s string) bool {
 	return false
 }
 
-// NewError 构造带上下文的错误。
+// NewError 构造带上下文的错误。用 %w 包装底层错误，使 errors.Is/As
+// 能穿透 op 前缀定位到哨兵错误（如 ErrNotFound），从而让上层（HTTP
+// 状态映射、依赖方的"找不到"判定）正确识别错误类别，而不是一律降级
+// 成内部错误。
 func NewError(op string, err error) error {
-	return fmt.Errorf("%s: %v", op, err)
+	return fmt.Errorf("%s: %w", op, err)
 }

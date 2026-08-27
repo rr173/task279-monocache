@@ -64,7 +64,7 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 }
 
 func httpStatus(err error) int {
-	if err == model.ErrNotFound {
+	if errors.Is(err, model.ErrNotFound) {
 		return http.StatusNotFound
 	}
 	if errors.Is(err, model.ErrInvalid) || errors.Is(err, model.ErrSealed) ||
