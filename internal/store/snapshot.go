@@ -33,7 +33,7 @@ func (db *DB) GetSnapshot(id string) (*model.VerificationSnapshot, error) {
 	var pub string
 	if err := row.Scan(&s.ID, &s.BatchID, &s.Status, &s.Note, &s.CreatedAt, &pub); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, nil
+			return nil, model.ErrNotFound
 		}
 		return nil, model.NewError("GetSnapshot", err)
 	}
@@ -66,6 +66,9 @@ func (db *DB) PublishSnapshot(id, note string) error {
 	s, err := db.GetSnapshot(id)
 	if err != nil {
 		return err
+	}
+	if s == nil {
+		return model.NewError("PublishSnapshot", model.ErrNotFound)
 	}
 	if s.Status == model.SnapPublished {
 		return nil

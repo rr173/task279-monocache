@@ -439,8 +439,12 @@ func (s *Service) MergeAndResolve(requestIDs []string) error {
 
 // CreateSnapshot 创建草稿验证快照。
 func (s *Service) CreateSnapshot(batchID, note string) (*model.VerificationSnapshot, error) {
-	if _, err := s.db.GetBatch(batchID); err != nil && err != model.ErrNotFound {
+	b, err := s.db.GetBatch(batchID)
+	if err != nil {
 		return nil, err
+	}
+	if b == nil {
+		return nil, model.NewError("CreateSnapshot", model.ErrNotFound)
 	}
 	snap := &model.VerificationSnapshot{BatchID: batchID, Status: model.SnapDraft, Note: note}
 	if err := s.db.CreateSnapshot(snap); err != nil {
@@ -454,7 +458,12 @@ func (s *Service) PublishSnapshot(id, note string) error {
 	if note == "" {
 		// 默认依据批次缓存状态生成报告摘要。
 		snap, err := s.db.GetSnapshot(id)
-		_ = err
+		if err != nil {
+			return err
+		}
+		if snap == nil {
+			return model.NewError("PublishSnapshot", model.ErrNotFound)
+		}
 		entries, err := s.db.ListCacheByBatch(snap.BatchID)
 		if err != nil {
 			return err
