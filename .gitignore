@@ -1,0 +1,4 @@
+.private/
+*.db
+*.db-wal
+*.db-shm
