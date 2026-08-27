@@ -93,20 +93,25 @@ func (s *Service) GetKeyByRequest(reqID string) (*model.MonoKey, error) { return
 func (s *Service) ListCache() ([]*model.CacheEntry, error) { return s.db.ListCache() }
 
 // GetSnapshot 读取验证快照。
+// 已发布/已替代快照的 note 是发布瞬间冻结的一致性证据，必须原样返回；
+// 仅 note 为空的 draft 快照回退到按当前缓存重算的摘要。
 func (s *Service) GetSnapshot(id string) (*model.VerificationSnapshot, error) {
 	snap, err := s.db.GetSnapshot(id)
 	if err != nil {
 		return nil, err
 	}
-	entries, err := s.db.ListCacheByBatch(snap.BatchID)
-	if err != nil {
-		return nil, err
+	if snap.Note == "" {
+		entries, err := s.db.ListCacheByBatch(snap.BatchID)
+		if err != nil {
+			return nil, err
+		}
+		snap.Note = snapshot.LiveNote(snap.BatchID, entries)
 	}
-	snap.Note = snapshot.LiveNote(snap.BatchID, entries)
 	return snap, nil
 }
 
 // ListSnapshots 按批次列出快照。
+// 同 GetSnapshot：已冻结的 note 原样返回，draft 空摘要才重算。
 func (s *Service) ListSnapshots(batchID string) ([]*model.VerificationSnapshot, error) {
 	if batchID == "" {
 		return nil, model.NewError("ListSnapshots", model.ErrInvalid)
@@ -116,6 +121,9 @@ func (s *Service) ListSnapshots(batchID string) ([]*model.VerificationSnapshot, 
 		return nil, err
 	}
 	for _, snap := range out {
+		if snap.Note != "" {
+			continue
+		}
 		entries, e2 := s.db.ListCacheByBatch(snap.BatchID)
 		if e2 != nil {
 			return nil, e2

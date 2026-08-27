@@ -41,7 +41,9 @@ func BuildReport(batchID string, entries []*model.CacheEntry) ConsistencyReport 
 	return r
 }
 
-// LiveNote 按当前缓存条目重算摘要（错误地覆盖已发布冻结 note）。
+// LiveNote 按当前缓存条目重算一致性摘要。
+// 仅用于尚未冻结证据的 draft 快照回退；已发布/已替代快照的 note
+// 是发布瞬间冻结的快照，调用方不得用本函数覆盖它。
 func LiveNote(batchID string, entries []*model.CacheEntry) string {
 	r := BuildReport(batchID, entries)
 	return "coherent=" + boolText(r.Coherent) +

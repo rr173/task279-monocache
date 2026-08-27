@@ -82,12 +82,23 @@ func (db *DB) PublishSnapshot(id, note string) error {
 		return model.NewError("PublishSnapshot", err)
 	}
 	pub := nowRFC3339()
-	if _, err := tx.Exec(
-		`UPDATE snapshots SET status=?, published_at=? WHERE id=?`,
-		model.SnapPublished, pub, id,
-	); err != nil {
-		_ = tx.Rollback()
-		return model.NewError("PublishSnapshot", err)
+	if note != "" {
+		// 发布即冻结：把发布瞬间的一致性证据写回 note，使其不再随后续缓存变更而漂移。
+		if _, err := tx.Exec(
+			`UPDATE snapshots SET status=?, note=?, published_at=? WHERE id=?`,
+			model.SnapPublished, note, pub, id,
+		); err != nil {
+			_ = tx.Rollback()
+			return model.NewError("PublishSnapshot", err)
+		}
+	} else {
+		if _, err := tx.Exec(
+			`UPDATE snapshots SET status=?, published_at=? WHERE id=?`,
+			model.SnapPublished, pub, id,
+		); err != nil {
+			_ = tx.Rollback()
+			return model.NewError("PublishSnapshot", err)
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return model.NewError("PublishSnapshot", err)
