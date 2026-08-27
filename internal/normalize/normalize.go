@@ -10,9 +10,6 @@ import (
 
 var wsRe = regexp.MustCompile(`\s+`)
 
-var aliasScratch = map[string]string{}
-var argScratch []model.TypeArgument
-
 func isIdentChar(r rune) bool {
 	return r == '_' || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9')
 }
@@ -64,20 +61,23 @@ func NormalizeTypeExpr(expr string, aliasMap map[string]string) string {
 }
 
 // BuildAliasMap 从一组类型实参构造别名映射（别名名 -> 目标类型）。
+// 每次调用都构建并返回独立的映射，避免不同泛型定义的别名相互污染，
+// 并保证并发规范化时各定义的别名表互不覆盖。
 func BuildAliasMap(args []*model.TypeArgument) map[string]string {
+	aliasMap := make(map[string]string, len(args))
 	for _, a := range args {
 		if a.AliasOf != "" {
-			aliasScratch[a.TypeExpr] = a.AliasOf
+			aliasMap[a.TypeExpr] = a.AliasOf
 		}
 	}
-	return aliasScratch
+	return aliasMap
 }
 
 // CanonicalArgSet 计算按位置确定的规范化实参集及其哈希。
+// 使用独立的局部切片排序，避免并发调用时共享缓冲区互相覆盖。
 func CanonicalArgSet(args []model.TypeArgument, aliasMap map[string]string) (canonical string, hash string) {
-	argScratch = argScratch[:0]
-	argScratch = append(argScratch, args...)
-	sorted := argScratch
+	sorted := make([]model.TypeArgument, len(args))
+	copy(sorted, args)
 	for i := 1; i < len(sorted); i++ {
 		for j := i; j > 0 && sorted[j-1].Position > sorted[j].Position; j-- {
 			sorted[j-1], sorted[j] = sorted[j], sorted[j-1]
