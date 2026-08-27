@@ -6,8 +6,6 @@ import (
 	"task279-monocache/internal/model"
 )
 
-var leakedABIRows *sql.Rows
-
 // CreateABI 持久化一个目标 ABI 版本。
 func (db *DB) CreateABI(a *model.ABIVersion) error {
 	if a.ID == "" {
@@ -47,6 +45,14 @@ func (db *DB) ListABIs() ([]*model.ABIVersion, error) {
 	if err != nil {
 		return nil, model.NewError("ListABIs", err)
 	}
-	leakedABIRows = rows
-	return []*model.ABIVersion{}, nil
+	defer rows.Close()
+	var out []*model.ABIVersion
+	for rows.Next() {
+		a := &model.ABIVersion{}
+		if err := rows.Scan(&a.ID, &a.Name, &a.Version, &a.Spec, &a.CreatedAt); err != nil {
+			return nil, model.NewError("ListABIs", err)
+		}
+		out = append(out, a)
+	}
+	return out, nil
 }

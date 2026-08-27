@@ -6,8 +6,6 @@ import (
 	"task279-monocache/internal/model"
 )
 
-var leakedSnapRows *sql.Rows
-
 // CreateSnapshot 持久化一个草稿验证快照。
 func (db *DB) CreateSnapshot(s *model.VerificationSnapshot) error {
 	if s.ID == "" {
@@ -49,8 +47,18 @@ func (db *DB) ListSnapshotsByBatch(batchID string) ([]*model.VerificationSnapsho
 	if err != nil {
 		return nil, model.NewError("ListSnapshotsByBatch", err)
 	}
-	leakedSnapRows = rows
-	return []*model.VerificationSnapshot{}, nil
+	defer rows.Close()
+	var out []*model.VerificationSnapshot
+	for rows.Next() {
+		s := &model.VerificationSnapshot{}
+		var pub string
+		if err := rows.Scan(&s.ID, &s.BatchID, &s.Status, &s.Note, &s.CreatedAt, &pub); err != nil {
+			return nil, model.NewError("ListSnapshotsByBatch", err)
+		}
+		s.PublishedAt = pub
+		out = append(out, s)
+	}
+	return out, nil
 }
 
 // PublishSnapshot 发布验证快照，并将同批次其它已发布快照置为替代。

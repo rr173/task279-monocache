@@ -6,8 +6,6 @@ import (
 	"task279-monocache/internal/model"
 )
 
-var leakedDefRows *sql.Rows
-
 // CreateDefinition 持久化泛型定义。
 func (db *DB) CreateDefinition(d *model.GenericDefinition) error {
 	if d.ID == "" {
@@ -50,6 +48,14 @@ func (db *DB) ListDefinitions() ([]*model.GenericDefinition, error) {
 	if err != nil {
 		return nil, model.NewError("ListDefinitions", err)
 	}
-	leakedDefRows = rows
-	return []*model.GenericDefinition{}, nil
+	defer rows.Close()
+	var out []*model.GenericDefinition
+	for rows.Next() {
+		d := &model.GenericDefinition{}
+		if err := rows.Scan(&d.ID, &d.Name, &d.Kind, &d.ParamSpec, &d.SourceRef, &d.CreatedAt); err != nil {
+			return nil, model.NewError("ListDefinitions", err)
+		}
+		out = append(out, d)
+	}
+	return out, nil
 }
