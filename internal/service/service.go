@@ -3,7 +3,6 @@ package service
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"time"
 
 	"task279-monocache/internal/cachecmp"
@@ -179,7 +178,7 @@ func (s *Service) CreateRequest(batchID, defID, abiID string, argIDs, constraint
 		return nil, err
 	}
 	if b.Status == model.BatchSealed {
-		return nil, fmt.Errorf("CreateRequest: %v", model.ErrSealed)
+		return nil, model.NewError("CreateRequest", model.ErrSealed)
 	}
 	if _, err := s.db.GetDefinition(defID); err != nil {
 		return nil, err
@@ -212,7 +211,7 @@ func (s *Service) NormalizeRequest(reqID string) (*model.MonoKey, error) {
 		return nil, err
 	}
 	if b.Status == model.BatchSealed {
-		return nil, fmt.Errorf("NormalizeRequest: %v", model.ErrSealed)
+		return nil, model.NewError("NormalizeRequest", model.ErrSealed)
 	}
 	argIDs, err := parseIDs(r.ArgIDs)
 	if err != nil {

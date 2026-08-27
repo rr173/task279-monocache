@@ -2,7 +2,6 @@ package store
 
 import (
 	"database/sql"
-	"fmt"
 
 	"task279-monocache/internal/model"
 )
@@ -70,7 +69,7 @@ func (db *DB) SetBatchStatus(id, status string) error {
 		return err
 	}
 	if b.Status == model.BatchSealed {
-		return fmt.Errorf("SetBatchStatus: %v", model.ErrSealed)
+		return model.NewError("SetBatchStatus", model.ErrSealed)
 	}
 	if _, err := db.Exec(`UPDATE batches SET status=? WHERE id=?`, status, id); err != nil {
 		return model.NewError("SetBatchStatus", err)

@@ -67,9 +67,12 @@ func httpStatus(err error) int {
 	if errors.Is(err, model.ErrNotFound) {
 		return http.StatusNotFound
 	}
-	if errors.Is(err, model.ErrInvalid) || err == model.ErrSealed ||
-		errors.Is(err, model.ErrCyclic) || errors.Is(err, model.ErrConstraintContradiction) ||
-		errors.Is(err, model.ErrABIMissing) || errors.Is(err, model.ErrConflict) {
+	if errors.Is(err, model.ErrInvalid) ||
+		errors.Is(err, model.ErrSealed) ||
+		errors.Is(err, model.ErrCyclic) ||
+		errors.Is(err, model.ErrConstraintContradiction) ||
+		errors.Is(err, model.ErrABIMissing) ||
+		errors.Is(err, model.ErrConflict) {
 		return http.StatusBadRequest
 	}
 	return http.StatusInternalServerError
