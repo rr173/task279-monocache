@@ -52,11 +52,9 @@ func (db *DB) GetCacheByKeyABI(keyString, abiID string) (*model.CacheEntry, erro
 	return e, nil
 }
 
-// ListCache 返回全部缓存条目。
+// ListCache 返回全部缓存条目，始终直接读取当前持久化结果，
+// 以保证合并等价约束等写操作之后能反映最新状态（不使用记忆化缓存）。
 func (db *DB) ListCache() ([]*model.CacheEntry, error) {
-	if db.listMemoOK {
-		return db.listMemo, nil
-	}
 	rows, err := db.Query(`SELECT id,def_id,key_string,arg_set_hash,request_id,abi_id,status,created_at FROM cache_entries ORDER BY created_at`)
 	if err != nil {
 		return nil, model.NewError("ListCache", err)
@@ -70,8 +68,6 @@ func (db *DB) ListCache() ([]*model.CacheEntry, error) {
 		}
 		out = append(out, e)
 	}
-	db.listMemo = out
-	db.listMemoOK = true
 	return out, nil
 }
 

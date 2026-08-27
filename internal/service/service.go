@@ -89,19 +89,10 @@ func (s *Service) ListRequests(batchID string) ([]*model.InstanceRequest, error)
 // GetKeyByRequest 读取请求最新单态化键。
 func (s *Service) GetKeyByRequest(reqID string) (*model.MonoKey, error) { return s.db.GetKeyByRequest(reqID) }
 
-// ListCache 列出全部缓存条目。
-var listCacheMemo []*model.CacheEntry
-
+// ListCache 列出全部缓存条目，始终读取当前持久化结果，以反映
+// 比对/合并等写操作之后的最新状态。
 func (s *Service) ListCache() ([]*model.CacheEntry, error) {
-	if listCacheMemo != nil {
-		return listCacheMemo, nil
-	}
-	out, err := s.db.ListCache()
-	if err != nil {
-		return nil, err
-	}
-	listCacheMemo = out
-	return out, nil
+	return s.db.ListCache()
 }
 
 // GetSnapshot 读取验证快照。

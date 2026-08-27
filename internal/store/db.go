@@ -5,16 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"task279-monocache/internal/model"
-
 	_ "modernc.org/sqlite"
 )
 
 // DB 封装 *sql.DB，提供迁移与统一访问入口。
 type DB struct {
 	*sql.DB
-	listMemo   []*model.CacheEntry
-	listMemoOK bool
 }
 
 // Open 打开（必要时创建）SQLite 数据库并执行迁移。
