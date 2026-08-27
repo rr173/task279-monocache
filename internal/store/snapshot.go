@@ -62,10 +62,15 @@ func (db *DB) ListSnapshotsByBatch(batchID string) ([]*model.VerificationSnapsho
 }
 
 // PublishSnapshot 发布验证快照，并将同批次其它已发布快照置为替代。
+// 草稿快照不被牵连，仍留在草稿态，可在之后单独发布。
+// 已被替代的快照不可再发布（状态机终态）。
 func (db *DB) PublishSnapshot(id, note string) error {
 	s, err := db.GetSnapshot(id)
 	if err != nil {
 		return err
+	}
+	if s.Status == model.SnapSuperseded {
+		return model.NewError("PublishSnapshot", model.ErrConflict)
 	}
 	if s.Status == model.SnapPublished {
 		return nil
@@ -74,9 +79,10 @@ func (db *DB) PublishSnapshot(id, note string) error {
 	if err != nil {
 		return model.NewError("PublishSnapshot", err)
 	}
+	// 仅替代此前已发布过的快照；草稿保持草稿态，发布只能替代已发布快照。
 	if _, err := tx.Exec(
-		`UPDATE snapshots SET status=? WHERE batch_id=? AND id!=?`,
-		model.SnapSuperseded, s.BatchID, id,
+		`UPDATE snapshots SET status=? WHERE batch_id=? AND id!=? AND status=?`,
+		model.SnapSuperseded, s.BatchID, id, model.SnapPublished,
 	); err != nil {
 		_ = tx.Rollback()
 		return model.NewError("PublishSnapshot", err)

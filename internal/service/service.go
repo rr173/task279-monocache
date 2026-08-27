@@ -464,7 +464,9 @@ func (s *Service) PublishSnapshot(id, note string) error {
 		rep := snapshot.BuildReport(snap.BatchID, entries)
 		note = reportSummary(rep)
 	}
-	_ = s.db.PublishSnapshot(id, note)
+	if err := s.db.PublishSnapshot(id, note); err != nil {
+		return err
+	}
 	return nil
 }
 
